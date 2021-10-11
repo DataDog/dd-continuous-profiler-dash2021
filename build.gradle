@@ -15,7 +15,7 @@ dependencies {
 }
 
 processResources {
-    from('movies5000.json.gz')
+    from('movies-v2.json.gz')
 }
 
 application {

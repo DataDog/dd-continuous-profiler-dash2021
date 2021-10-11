@@ -91,7 +91,7 @@ public class Server {
 		}
 
 		try (
-				var is = ClassLoader.getSystemResourceAsStream("movies5000.json.gz");
+				var is = ClassLoader.getSystemResourceAsStream("movies-v2.json.gz");
 				var gzis = new GZIPInputStream(is);
 				var reader = new InputStreamReader(gzis)
 		){
@@ -102,10 +102,12 @@ public class Server {
 	}
 
 	public static class Movie {
-		public String title;
-		@SerializedName("vote_average")
-		public double rating;
-		@SerializedName("release_date")
-		public String releaseDate;
+		String id;
+		String originalTitle;
+		String overview;
+		String releaseDate;
+		String tagline;
+		String title;
+		String voteAverage;
 	}
 }
