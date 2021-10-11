@@ -22,3 +22,9 @@ application {
     mainClass.set('movies.Server')
     applicationDefaultJvmArgs []
 }
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
