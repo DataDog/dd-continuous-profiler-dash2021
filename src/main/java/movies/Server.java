@@ -31,7 +31,7 @@ public class Server {
 	}
 
 	public static void main(String[] args) {
-		port(8080);
+		port(8081);
 		get("/movies", Server::moviesEndpoint);
 
 		exception(Exception.class, (exception, request, response) -> {
