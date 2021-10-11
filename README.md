@@ -1,3 +1,4 @@
-# dd-continuous-profiler-example
+# dd-continuous-profiler-dash2021
 
-This is an example service that goes along with [Intro to Profiling](https://docs.datadoghq.com/tracing/profiler/intro_to_profiling/).
+Example service used for the [_Diagnose and Optimize CPU Performance with Continuous Profiling_](https://www.dashcon.io/workshops/diagnose-and-optimize-cpu-performance-with-continuous-profiling/)
+Dash 2021 workshop.
