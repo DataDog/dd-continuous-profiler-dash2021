@@ -19,7 +19,6 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.reflect.TypeToken;
 
-import datadog.trace.api.Trace;
 import spark.Request;
 import spark.Response;
 
@@ -41,7 +40,6 @@ public class Server {
 		});
 	}
 
-	@Trace(operationName = "http.req", resourceName = "/movies")
 	private static Object moviesEndpoint(Request req, Response res) {
 		var movies = getMovies().stream();
 		movies = sortByDescReleaseDate(movies);
