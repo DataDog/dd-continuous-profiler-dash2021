@@ -13,7 +13,7 @@ dependencies {
 }
 
 processResources {
-    from("../movies5000.json.gz")
+    from("movies5000.json.gz")
 }
 
 application {
