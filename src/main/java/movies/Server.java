@@ -4,23 +4,24 @@ import static spark.Spark.exception;
 import static spark.Spark.get;
 import static spark.Spark.port;
 
-import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.IOException;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Random;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import java.util.zip.GZIPInputStream;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.annotations.SerializedName;
-import com.google.gson.reflect.TypeToken;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import com.google.gson.annotations.SerializedName;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 
 import com.mongodb.client.MongoClients;
 import org.bson.Document;
@@ -41,6 +42,7 @@ public class Server {
 
 	public static void main(String[] args) {
 		port(8081);
+		get("/", Server::randomMovieEndpoint);
 		get("/credits", Server::creditsEndpoint);
 		get("/movies", Server::moviesEndpoint);
 
@@ -51,6 +53,11 @@ public class Server {
 			System.err.println(exception.getMessage());
 			exception.printStackTrace();
 		});
+	}
+
+	private static Object randomMovieEndpoint(Request req, Response res) {
+		var randomMovie = MOVIES.get().get(new Random().nextInt(MOVIES.get().size()));
+		return replyJSON(res, randomMovie);
 	}
 
 	private static Object creditsEndpoint(Request req, Response res) {
