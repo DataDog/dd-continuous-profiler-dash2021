@@ -30,16 +30,10 @@ import spark.Request;
 import spark.Response;
 
 public class Server {
-	private static final Gson GSON;
-	private static final Supplier<List<Movie>> MOVIES;
-	private static final Supplier<List<Credit>> CREDITS;
+	private static final Gson GSON = new GsonBuilder().setLenient().setPrettyPrinting().create();
+	private static final Supplier<List<Movie>> MOVIES = Suppliers.memoize(Server::loadMovies);
+	private static final Supplier<List<Credit>> CREDITS = Server::loadCredits;
 	// Placeholder for future improvement
-
-	static {
-		GSON = new GsonBuilder().setLenient().setPrettyPrinting().create();
-		MOVIES = Suppliers.memoize(Server::loadMovies);
-		CREDITS = Server::loadCredits;
-	}
 
 	public static void main(String[] args) {
 		port(8081);
