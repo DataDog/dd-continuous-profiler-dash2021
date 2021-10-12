@@ -75,12 +75,9 @@ public class Server {
 
 	private static List<Credit> creditsForMovie(Movie movie) {
 		// Problem: We are loading the credits every time this method gets called.
-		// Example Solution: Memoize the CREDITS supplier.
 		var credits = CREDITS.get();
 
-		// Problem: We are doing a O(n^2) search.
-		// Example Solution: Use a map with O(1) access time, reducing the overall complexity to O(n)
-		//   return CREDITS_BY_MOVIEID.get().get(movie.id);
+		// Problem: We are searching the entire credits list for every single movie
 		return credits.stream().filter(c -> c.id.equals(movie.id)).collect(Collectors.toList());
 	}
 
@@ -90,9 +87,6 @@ public class Server {
 		var query = req.queryParamOrDefault("q", req.queryParams("query"));
 		if (query != null) {
 			// Problem: We are not compiling the pattern and there's a more efficient way of ignoring cases.
-			// Solution:
-			//   var p = Pattern.compile(query, Pattern.CASE_INSENSITIVE);
-			//   movies = movies.filter(m -> p.matcher(m.title).find());
 			movies = movies.filter(m -> Pattern.matches(".*" + query.toUpperCase() + ".*", m.title.toUpperCase()));
 		}
 		return replyJSON(res, movies);
@@ -101,9 +95,6 @@ public class Server {
 	private static Stream<Movie> sortByDescReleaseDate(Stream<Movie> movies) {
 		return movies.sorted(Comparator.comparing((Movie m) -> {
 			// Problem: We are parsing a datetime for each item to be sorted.
-			// Example Solution:
-			//   Since date is in isoformat (yyyy-mm-dd) already, that one sorts nicely with normal string sorting
-			//   `return m.releaseDate`
 			try {
 				return LocalDate.parse(m.releaseDate);
 			} catch (Exception e) {
