@@ -1,0 +1,8 @@
+version: '3'
+services:
+  movies-api-mongo:
+    image: mongo:5.0.3
+    volumes:
+    - ./mongo-seed:/docker-entrypoint-initdb.d
+    ports:
+    - 127.0.0.1:27017:27017/tcp
