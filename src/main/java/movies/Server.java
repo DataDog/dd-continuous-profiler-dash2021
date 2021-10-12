@@ -33,6 +33,7 @@ public class Server {
 	private static final Gson GSON;
 	private static final Supplier<List<Movie>> MOVIES;
 	private static final Supplier<List<Credit>> CREDITS;
+	// Placeholder for future improvement
 
 	static {
 		GSON = new GsonBuilder().setLenient().setPrettyPrinting().create();
