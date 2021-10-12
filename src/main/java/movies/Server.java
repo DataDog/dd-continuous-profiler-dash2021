@@ -19,6 +19,8 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.reflect.TypeToken;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 
 import com.mongodb.client.MongoClients;
 import org.bson.Document;
@@ -28,16 +30,22 @@ import spark.Response;
 
 public class Server {
 	private static final Gson GSON;
-	private static volatile List<Movie> CACHED_MOVIES;
+	private static final Supplier<List<Movie>> MOVIES;
+	private static final Supplier<List<Credit>> CREDITS;
 
 	static {
 		GSON = new GsonBuilder().setLenient().setPrettyPrinting().create();
+		MOVIES = Suppliers.memoize(Server::loadMovies);
+		CREDITS = Server::loadCredits;
 	}
 
 	public static void main(String[] args) {
 		port(8081);
 		get("/credits", Server::creditsEndpoint);
 		get("/movies", Server::moviesEndpoint);
+
+		MOVIES.get();
+		CREDITS.get();
 
 		exception(Exception.class, (exception, request, response) -> {
 			System.err.println(exception.getMessage());
@@ -46,7 +54,7 @@ public class Server {
 	}
 
 	private static Object creditsEndpoint(Request req, Response res) {
-		var movies = getMovies().stream();
+		var movies = MOVIES.get().stream();
 		var query = req.queryParamOrDefault("q", req.queryParams("query"));
 
 		if (query != null) {
@@ -60,9 +68,8 @@ public class Server {
 
 	private static List<Credit> creditsForMovie(Movie movie) {
 		// Problem: We are loading the credits every time this method gets called.
-		// Example Solution:
-		// FIXME TODO
-		var credits = loadCredits();
+		// Example Solution: Memoize the CREDITS supplier.
+		var credits = CREDITS.get();
 
 		// Problem: We are doing a O(n^2) search.
 		// Example Solution: Use a map with O(1) access time, reducing the overall complexity to O(n)
@@ -71,7 +78,7 @@ public class Server {
 	}
 
 	private static Object moviesEndpoint(Request req, Response res) {
-		var movies = getMovies().stream();
+		var movies = MOVIES.get().stream();
 		movies = sortByDescReleaseDate(movies);
 		var query = req.queryParamOrDefault("q", req.queryParams("query"));
 		if (query != null) {
@@ -107,25 +114,13 @@ public class Server {
 		return GSON.toJson(data);
 	}
 
-	private static List<Movie> getMovies() {
-		if (CACHED_MOVIES != null) {
-			return CACHED_MOVIES;
-		}
-
-		return loadMovies();
-	}
-
-	private synchronized static List<Movie> loadMovies() {
-		if (CACHED_MOVIES != null) {
-			return CACHED_MOVIES;
-		}
-
+	private static List<Movie> loadMovies() {
 		try (
 			var is = ClassLoader.getSystemResourceAsStream("movies-v2.json.gz");
 			var gzis = new GZIPInputStream(is);
 			var reader = new InputStreamReader(gzis)
 		) {
-			return CACHED_MOVIES = GSON.fromJson(reader, new TypeToken<List<Movie>>() {}.getType());
+			return GSON.fromJson(reader, new TypeToken<List<Movie>>() {}.getType());
 		} catch (IOException e) {
 			throw new RuntimeException("Failed to load movie data");
 		}
