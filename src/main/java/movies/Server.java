@@ -12,12 +12,16 @@ import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 import java.util.zip.GZIPInputStream;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.reflect.TypeToken;
+
+import com.mongodb.client.MongoClients;
+import org.bson.Document;
 
 import spark.Request;
 import spark.Response;
@@ -32,12 +36,38 @@ public class Server {
 
 	public static void main(String[] args) {
 		port(8081);
+		get("/credits", Server::creditsEndpoint);
 		get("/movies", Server::moviesEndpoint);
 
 		exception(Exception.class, (exception, request, response) -> {
 			System.err.println(exception.getMessage());
 			exception.printStackTrace();
 		});
+	}
+
+	private static Object creditsEndpoint(Request req, Response res) {
+		var movies = getMovies().stream();
+		var query = req.queryParamOrDefault("q", req.queryParams("query"));
+
+		if (query != null) {
+			var p = Pattern.compile(query, Pattern.CASE_INSENSITIVE);
+			movies = movies.filter(m -> m.title != null && p.matcher(m.title).find());
+		}
+
+		var moviesWithCredits = movies.map(movie -> new MovieWithCredits(movie, creditsForMovie(movie)));
+		return replyJSON(res, moviesWithCredits);
+	}
+
+	private static List<Credit> creditsForMovie(Movie movie) {
+		// Problem: We are loading the credits every time this method gets called.
+		// Example Solution:
+		// FIXME TODO
+		var credits = loadCredits();
+
+		// Problem: We are doing a O(n^2) search.
+		// Example Solution: Use a map with O(1) access time, reducing the overall complexity to O(n)
+		//   return CREDITS_BY_MOVIEID.get().get(movie.id);
+		return credits.stream().filter(c -> c.id.equals(movie.id)).collect(Collectors.toList());
 	}
 
 	private static Object moviesEndpoint(Request req, Response res) {
@@ -91,13 +121,24 @@ public class Server {
 		}
 
 		try (
-				var is = ClassLoader.getSystemResourceAsStream("movies-v2.json.gz");
-				var gzis = new GZIPInputStream(is);
-				var reader = new InputStreamReader(gzis)
-		){
+			var is = ClassLoader.getSystemResourceAsStream("movies-v2.json.gz");
+			var gzis = new GZIPInputStream(is);
+			var reader = new InputStreamReader(gzis)
+		) {
 			return CACHED_MOVIES = GSON.fromJson(reader, new TypeToken<List<Movie>>() {}.getType());
 		} catch (IOException e) {
 			throw new RuntimeException("Failed to load movie data");
+		}
+	}
+
+	private static List<Credit> loadCredits() {
+		try (
+			var mongoClient = MongoClients.create()
+		) {
+			var creditsCollection = mongoClient.getDatabase("moviesDB").getCollection("credits");
+			return StreamSupport
+				.stream(creditsCollection.find().batchSize(5_000).map(Credit::new).spliterator(), false)
+				.collect(Collectors.toList());
 		}
 	}
 
@@ -110,4 +151,11 @@ public class Server {
 		String title;
 		String voteAverage;
 	}
+
+	public static record Credit(String id, List<String> crew, List<String> cast) {
+		public Credit(Document data) {
+			this(data.getString("id"), data.getList("crew", String.class), data.getList("cast", String.class));
+		}
+	}
+	public static record MovieWithCredits(Movie movie, List<Credit> credits) { }
 }
