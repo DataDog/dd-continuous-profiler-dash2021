@@ -70,10 +70,8 @@ public class Server {
 
 	private static List<Credit> creditsForMovie(Movie movie) {
 		// Problem: We are loading the credits every time this method gets called.
-		var credits = CREDITS.get();
-
-		// Problem: We are searching the entire credits list for every single movie
-		return credits.stream().filter(c -> c.id.equals(movie.id)).collect(Collectors.toList());
+		// Problem: We are searching the entire credits list for every single movie.
+		return CREDITS.get().stream().filter(c -> c.id.equals(movie.id)).collect(Collectors.toList());
 	}
 
 	private static Object moviesEndpoint(Request req, Response res) {
