@@ -42,6 +42,7 @@ public class Server {
 		get("/credits", Server::creditsEndpoint);
 		get("/movies", Server::moviesEndpoint);
 
+		// Warm these up at application start
 		MOVIES.get();
 		CREDITS.get();
 
