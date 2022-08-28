@@ -27,11 +27,16 @@ import com.google.gson.reflect.TypeToken;
 import com.mongodb.client.MongoClients;
 import org.bson.Document;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import spark.Request;
 import spark.Response;
 
 public class Server {
 	private static final Gson GSON = new GsonBuilder().setLenient().setPrettyPrinting().create();
+	private static final Logger LOG = LoggerFactory.getLogger(Server.class);
+
 	private static final Supplier<List<Movie>> MOVIES = Suppliers.memoize(Server::loadMovies);
 	private static final Supplier<List<Credit>> CREDITS = Server::loadCredits;
 	// Placeholder for future improvement
@@ -41,6 +46,7 @@ public class Server {
 		get("/", Server::randomMovieEndpoint);
 		get("/credits", Server::creditsEndpoint);
 		get("/movies", Server::moviesEndpoint);
+		get("/old-movies", Server::oldMoviesEndpoint);
 
 		// Warm these up at application start
 		MOVIES.get();
@@ -98,6 +104,22 @@ public class Server {
 		}).reversed());
 	}
 
+	private static Object oldMoviesEndpoint(Request req, Response res) {
+		var year = req.queryParamOrDefault("year", "2010");
+		var limit = Integer.valueOf(req.queryParamOrDefault("n", "10"));
+		var oldMovies = MOVIES.get().stream().filter(m -> isOlderThan(year, m)).collect(Collectors.toList());
+		LOG.debug("Found the following oldMovies: " + oldMovies);
+		oldMovies = oldMovies.stream().limit(limit).collect(Collectors.toList());
+		LOG.debug("With limit " + limit + ", the result was: " + oldMovies);
+		return replyJSON(res, oldMovies);
+	}
+
+	private static boolean isOlderThan(String year, Movie movie) {
+		var result = movie.releaseDate.compareTo(year) < 0;
+		LOG.debug("Is " + movie + " older than " + year + "? " + result);
+		return result;
+	}
+
 	private static Object replyJSON(Response res, Stream<?> data) {
 		return replyJSON(res, data.collect(Collectors.toList()));
 	}
@@ -138,6 +160,10 @@ public class Server {
 		String tagline;
 		String title;
 		String voteAverage;
+
+		public String toString() {
+			return GSON.toJson(this).toString();
+		}
 	}
 
 	public static record Credit(String id, List<String> crew, List<String> cast) {
