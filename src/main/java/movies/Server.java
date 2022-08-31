@@ -66,6 +66,7 @@ public class Server {
 	private static Object creditsEndpoint(Request req, Response res) {
 		var movies = MOVIES.get().stream();
 		var query = req.queryParamOrDefault("q", req.queryParams("query"));
+		boolean stats = Boolean.parseBoolean(req.queryParams("stats"));
 
 		if (query != null) {
 			var p = Pattern.compile(query, Pattern.CASE_INSENSITIVE);
@@ -73,13 +74,39 @@ public class Server {
 		}
 
 		var moviesWithCredits = movies.map(movie -> new MovieWithCredits(movie, creditsForMovie(movie)));
-		return replyJSON(res, moviesWithCredits);
+
+		if (stats) {
+			var moviesWithStats =
+				moviesWithCredits
+					.map(movieWithCredits -> new MovieWithCrewCount(movieWithCredits.movie, crewCountForMovie(movieWithCredits)));
+			return replyJSON(res, moviesWithStats);
+		} else {
+			return replyJSON(res, moviesWithCredits);
+		}
 	}
 
 	private static List<Credit> creditsForMovie(Movie movie) {
 		// Problem: We are loading the credits every time this method gets called.
 		// Problem: We are searching the entire credits list for every single movie.
 		return CREDITS.get().stream().filter(c -> c.id.equals(movie.id)).collect(Collectors.toList());
+	}
+
+	private static Map<CrewRole, Long> crewCountForMovie(MovieWithCredits movie) {
+		return movie.credits.get(0).crew.stream().collect(Collectors.groupingBy(Server::parseRole, Collectors.counting()));
+	}
+
+	private static final Pattern ROLE = Pattern.compile("\\((.*)\\)");
+
+	private static CrewRole parseRole(String nameAndRole) {
+		var matcher = ROLE.matcher(nameAndRole);
+		matcher.find();
+		String role = matcher.group(1);
+
+		try {
+			return CrewRole.valueOf(role);
+		} catch (IllegalArgumentException e) {
+			return CrewRole.Other;
+		}
 	}
 
 	private static Object moviesEndpoint(Request req, Response res) {
@@ -172,4 +199,7 @@ public class Server {
 		}
 	}
 	public static record MovieWithCredits(Movie movie, List<Credit> credits) { }
+
+	public static enum CrewRole { Director, Writer, Screenplay, Editor, Animation, Other }
+	public static record MovieWithCrewCount(Movie movie, Map<CrewRole, Long> crewCount) { }
 }
