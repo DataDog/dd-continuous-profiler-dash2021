@@ -8,7 +8,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.sparkjava:spark-core:2.9.3'
+    implementation 'com.sparkjava:spark-core:2.9.4'
     implementation 'com.google.code.gson:gson:2.8.8'
     implementation 'org.mongodb:mongodb-driver-sync:4.3.2'
     implementation 'com.google.guava:guava:31.0.1-jre'
@@ -22,8 +22,19 @@ processResources {
 
 application {
     mainClass.set('movies.Server')
-    applicationDefaultJvmArgs = ['-Xmx3g', '-Xms3g']
-}
+    applicationDefaultJvmArgs = [
+        '-Xmx3g',
+        '-Xms3g',
+        '-javaagent:dd-java-agent.jar',
+        '-Ddd.profiling.enabled=true',
+        '-XX:FlightRecorderOptions=stackdepth=256',
+        '-Ddd.logs.injection=true',
+        '-Ddd.trace.sample.rate=1',
+        '-Ddd.service=ivoanjo-testing-movies-api-java',
+        '-Ddd.env=staging',
+        "-Ddd.version=${new Date().toString()}", // Tag each run with a different version
+        '-Ddd.profiling.jfr-template-override-file=dd-profiler-overrides.jfp',
+    ]}
 
 java {
     toolchain {
