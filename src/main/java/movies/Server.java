@@ -7,11 +7,13 @@ import static spark.Spark.port;
 import java.io.InputStreamReader;
 import java.io.IOException;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -93,7 +95,7 @@ public class Server {
 
 		if (query != null) {
 			var filterQuery = query.toLowerCase();
-			movies = movies.filter(m -> m.title.toLowerCase().contains(filterQuery));
+			movies = movies.filter(m -> m.lowerCaseTitle.contains(filterQuery));
 		}
 
 		var selectedMovies = movies.collect(Collectors.toList());
@@ -117,23 +119,34 @@ public class Server {
 	private static Map<CrewRole, Long> crewCountForMovie(List<Credit> credits) {
 		var credit = credits != null ? credits.get(0) : null;
 		return credit != null ?
-		  credit.crew.stream().collect(Collectors.groupingBy(Server::parseRole, Collectors.counting())) :
+		  credit.crewRole.stream().collect(Collectors.groupingBy(Server::parseRole, Collectors.counting())) :
 		  Collections.emptyMap();
 	}
 
 	private static final Pattern ROLE = Pattern.compile("\\((.*)\\)");
 
-	private static CrewRole parseRole(String nameAndRole) {
-		var matcher = ROLE.matcher(nameAndRole);
-		matcher.find();
-		String role = matcher.group(1);
-
+	private static CrewRole parseRole(String role) {
 		try {
 			return CrewRole.valueOf(role);
 		} catch (IllegalArgumentException e) {
 			LOG.trace("Unknown role", e);
 			return CrewRole.Other;
 		}
+	}
+
+	private static Map<String, CrewRole> ROLES_MAP =
+		Arrays.stream(CrewRole.class.getEnumConstants()).collect(Collectors.toMap(CrewRole::toString, Function.identity()));
+
+	private static CrewRole fixedParseRole(String inputRole) {
+		CrewRole role = ROLES_MAP.get(inputRole);
+		return role != null ? role : CrewRole.Other;
+	}
+
+	private static String getRole(String nameAndRole) {
+		var matcher = ROLE.matcher(nameAndRole);
+		matcher.find();
+		String role = matcher.group(1);
+		return role;
 	}
 
 	private static Object moviesEndpoint(Request req, Response res) {
@@ -183,13 +196,28 @@ public class Server {
 		return GSON.toJson(data);
 	}
 
+  public static class FromJsonMovie {
+			String id;
+			String originalTitle;
+			String overview;
+			String releaseDate;
+			String tagline;
+			String title;
+			String voteAverage;
+
+			Movie toMovie() {
+				return new Movie(id, originalTitle, overview, releaseDate, tagline, title, voteAverage, title.toLowerCase());
+			}
+		}
+
 	private static List<Movie> loadMovies() {
 		try (
 			var is = ClassLoader.getSystemResourceAsStream("movies-v2.json.gz");
 			var gzis = new GZIPInputStream(is);
 			var reader = new InputStreamReader(gzis)
 		) {
-			return GSON.fromJson(reader, new TypeToken<List<Movie>>() {}.getType());
+			return GSON.<List<FromJsonMovie>>fromJson(reader, new TypeToken<List<FromJsonMovie>>() {}.getType())
+				.stream().map(FromJsonMovie::toMovie).collect(Collectors.toList());
 		} catch (IOException e) {
 			throw new RuntimeException("Failed to load movie data");
 		}
@@ -206,23 +234,29 @@ public class Server {
 		}
 	}
 
-	public static class Movie {
-		String id;
-		String originalTitle;
-		String overview;
-		String releaseDate;
-		String tagline;
-		String title;
-		String voteAverage;
-
+	public static record Movie(
+		String id,
+		String originalTitle,
+		String overview,
+		String releaseDate,
+		String tagline,
+		String title,
+		String voteAverage,
+		String lowerCaseTitle // TODO: transient?
+	) {
 		public String toString() {
 			return GSON.toJson(this).toString();
 		}
 	}
 
-	public static record Credit(String id, List<String> crew, List<String> cast) {
+	public static record Credit(String id, List<String> crew, List<String> cast, List<String> crewRole /* TODO transient */) {
 		public Credit(Document data) {
-			this(data.getString("id"), data.getList("crew", String.class), data.getList("cast", String.class));
+			this(
+				data.getString("id"),
+				data.getList("crew", String.class),
+				data.getList("cast", String.class),
+				data.getList("crew", String.class).stream().map(crew -> getRole(crew)).collect(Collectors.toList())
+			);
 		}
 	}
 	public static record MovieWithCredits(Movie movie, List<Credit> credits) { }
