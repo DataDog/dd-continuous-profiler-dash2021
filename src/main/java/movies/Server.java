@@ -60,6 +60,8 @@ public class Server {
 			System.err.println(exception.getMessage());
 			exception.printStackTrace();
 		});
+
+		LOG.info("Running version " + System.getProperty("dd.version").toLowerCase() + " with pid " + ProcessHandle.current().pid());
 	}
 
 	private static Object randomMovieEndpoint(Request req, Response res) {

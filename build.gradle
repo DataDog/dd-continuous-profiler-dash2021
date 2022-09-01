@@ -32,7 +32,7 @@ application {
         '-Ddd.trace.sample.rate=1',
         '-Ddd.service=ivoanjo-testing-movies-api-java',
         '-Ddd.env=staging',
-        "-Ddd.version=${new Date().toString()}", // Tag each run with a different version
+        "-Ddd.version=${LocalDateTime.now().withNano(0)}", // Tag each run with a different version
         '-Ddd.profiling.jfr-template-override-file=dd-profiler-overrides.jfp',
     ]}
 
