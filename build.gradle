@@ -34,6 +34,10 @@ application {
         '-Ddd.env=staging',
         "-Ddd.version=${LocalDateTime.now().withNano(0)}", // Tag each run with a different version
         '-Ddd.profiling.jfr-template-override-file=dd-profiler-overrides.jfp',
+        // '-XX:+PrintCompilation',
+        // '-Ddd.profiling.async.enabled=true',
+        // '-Ddd.tags=config:macos-async-standalone',
+        // '-Ddd.profiling.async.stackdepth=1024'
     ]}
 
 java {

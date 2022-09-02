@@ -45,71 +45,34 @@ public class Server {
     private static final Supplier<Map<String, List<Credit>>> CREDITS_BY_MOVIE_ID = Suppliers.memoize(() -> CREDITS.get().stream().collect(Collectors.groupingBy(c -> c.id)));
 
 	public static void main(String[] args) {
-		port(8081);
-		get("/", Server::randomMovieEndpoint);
-		get("/credits", Server::creditsEndpoint);
-		get("/movies", Server::moviesEndpoint);
-		get("/old-movies", Server::oldMoviesEndpoint);
-		get("/stats", Server::statsEndpoint);
-
 		// Warm these up at application start
 		MOVIES.get();
 		CREDITS.get();
 
-		exception(Exception.class, (exception, request, response) -> {
-			System.err.println(exception.getMessage());
-			exception.printStackTrace();
-		});
-
 		LOG.info("Running version " + System.getProperty("dd.version").toLowerCase() + " with pid " + ProcessHandle.current().pid());
-	}
 
-	private static Object randomMovieEndpoint(Request req, Response res) {
-		var randomMovie = MOVIES.get().get(new Random().nextInt(MOVIES.get().size()));
-		return replyJSON(res, randomMovie);
-	}
+		int iters = 50;
+		while (true) {
+			long before = System.nanoTime();
 
-	private static Object creditsEndpoint(Request req, Response res) {
-		var movies = MOVIES.get().stream();
-		var query = req.queryParamOrDefault("q", req.queryParams("query"));
-		// boolean stats = Boolean.parseBoolean(req.queryParams("stats"));
+			for (int i = 0; i < iters; i++) {
+				statsEndpoint().toString();
+			}
 
-		if (query != null) {
-			var matchesQuery = Pattern.compile(query, Pattern.CASE_INSENSITIVE).asPredicate();
-			movies = movies.filter(m -> matchesQuery.test(m.title));
+			long after = System.nanoTime() - before;
+
+			LOG.info("Finished " + iters + " iterations in " + ((double) after)/ 1_000_000_000 + "s");
 		}
-
-		var moviesWithCredits = movies.map(movie -> new MovieWithCredits(movie, creditsForMovie(movie)));
-
-		// if (stats) {
-		// 	var moviesWithStats =
-		// 		moviesWithCredits
-		// 			.map(movieWithCredits -> new MovieWithCrewCount(movieWithCredits.movie, crewCountForMovie(movieWithCredits)));
-		// 	return replyJSON(res, moviesWithStats);
-		// } else {
-			return replyJSON(res, moviesWithCredits);
-		// }
 	}
 
-	private static Object statsEndpoint(Request req, Response res) {
+	private static StatsResult statsEndpoint() {
 		var movies = MOVIES.get().stream();
-		var query = req.queryParamOrDefault("q", req.queryParams("query"));
-
-		if (query != null) {
-			var filterQuery = query.toLowerCase();
-			movies = movies.filter(m -> m.lowerCaseTitle.contains(filterQuery));
-		}
-
-		var selectedMovies = movies.collect(Collectors.toList());
-
-		var numberMatched = selectedMovies.size();
-		var statsForMovies = selectedMovies.stream().map(movie -> crewCountForMovie(creditsForMovie(movie)));
-		var aggregatedStats =
-			statsForMovies
+		var statsForMovies = movies.map(movie -> crewCountForMovie(creditsForMovie(movie)));
+		var aggregatedStats = statsForMovies
 				.flatMap(countMap -> countMap.entrySet().stream())
 				.collect(Collectors.groupingBy(Map.Entry::getKey, Collectors.summingLong(Map.Entry::getValue)));
 
-		return replyJSON(res, new StatsResult(numberMatched, aggregatedStats));
+		return new StatsResult(0, aggregatedStats);
 	}
 
 	private static List<Credit> creditsForMovie(Movie movie) {
@@ -121,7 +84,7 @@ public class Server {
 	private static Map<CrewRole, Long> crewCountForMovie(List<Credit> credits) {
 		var credit = credits != null ? credits.get(0) : null;
 		return credit != null ?
-		  credit.crewRole.stream().collect(Collectors.groupingBy(Server::parseRole, Collectors.counting())) :
+		  credit.crewRole.stream().collect(Collectors.groupingBy(Server::fixedParseRole, Collectors.counting())) :
 		  Collections.emptyMap();
 	}
 
@@ -149,53 +112,6 @@ public class Server {
 		matcher.find();
 		String role = matcher.group(1);
 		return role;
-	}
-
-	private static Object moviesEndpoint(Request req, Response res) {
-		var movies = MOVIES.get().stream();
-		movies = sortByDescReleaseDate(movies);
-		var query = req.queryParamOrDefault("q", req.queryParams("query"));
-		if (query != null) {
-			// Problem: We are not compiling the pattern and there's a more efficient way of ignoring cases.
-			movies = movies.filter(m -> Pattern.matches(".*" + query.toUpperCase() + ".*", m.title.toUpperCase()));
-		}
-		return replyJSON(res, movies);
-	}
-
-	private static Stream<Movie> sortByDescReleaseDate(Stream<Movie> movies) {
-		return movies.sorted(Comparator.comparing((Movie m) -> {
-			// Problem: We are parsing a datetime for each item to be sorted.
-			try {
-				return LocalDate.parse(m.releaseDate);
-			} catch (Exception e) {
-				return LocalDate.MIN;
-			}
-		}).reversed());
-	}
-
-	private static Object oldMoviesEndpoint(Request req, Response res) {
-		var year = req.queryParamOrDefault("year", "2010");
-		var limit = Integer.valueOf(req.queryParamOrDefault("n", "10"));
-		var oldMovies = MOVIES.get().stream().filter(m -> isOlderThan(year, m)).collect(Collectors.toList());
-		LOG.debug("Found the following oldMovies: " + oldMovies);
-		oldMovies = oldMovies.stream().limit(limit).collect(Collectors.toList());
-		LOG.debug("With limit " + limit + ", the result was: " + oldMovies);
-		return replyJSON(res, oldMovies);
-	}
-
-	private static boolean isOlderThan(String year, Movie movie) {
-		var result = movie.releaseDate.compareTo(year) < 0;
-		LOG.debug("Is " + movie + " older than " + year + "? " + result);
-		return result;
-	}
-
-	private static Object replyJSON(Response res, Stream<?> data) {
-		return replyJSON(res, data.collect(Collectors.toList()));
-	}
-
-	private static Object replyJSON(Response res, Object data) {
-		res.type("application/json");
-		return GSON.toJson(data);
 	}
 
   public static class FromJsonMovie {
