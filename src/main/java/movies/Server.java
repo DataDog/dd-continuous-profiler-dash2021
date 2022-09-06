@@ -188,7 +188,7 @@ public class Server {
 		}
 	}
 
-  public static class Movie {
+	public static class Movie {
 		String id;
 		String originalTitle;
 		String overview;
