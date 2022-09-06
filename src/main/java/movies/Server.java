@@ -7,10 +7,12 @@ import static spark.Spark.port;
 import java.io.InputStreamReader;
 import java.io.IOException;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -45,6 +47,7 @@ public class Server {
 		get("/credits", Server::creditsEndpoint);
 		get("/movies", Server::moviesEndpoint);
 		get("/old-movies", Server::oldMoviesEndpoint);
+		get("/stats", Server::statsEndpoint);
 
 		// Warm these up at application start
 		MOVIES.get();
@@ -73,8 +76,44 @@ public class Server {
 		return replyJSON(res, moviesWithCredits);
 	}
 
+	private static Object statsEndpoint(Request req, Response res) {
+		var movies = MOVIES.get().stream();
+		var query = req.queryParamOrDefault("q", req.queryParams("query"));
+
+		if (query != null) {
+			var p = Pattern.compile(query, Pattern.CASE_INSENSITIVE);
+			movies = movies.filter(m -> m.title != null && p.matcher(m.title).find());
+		}
+
+		var selectedMovies = movies.toList();
+
+		var numberMatched = selectedMovies.size();
+		var statsForMovies = selectedMovies.stream().map(movie -> crewCountForMovie(creditsForMovie(movie)));
+		var aggregatedStats =
+			statsForMovies
+				.flatMap(countMap -> countMap.entrySet().stream())
+				.collect(Collectors.groupingBy(Map.Entry::getKey, Collectors.summingLong(Map.Entry::getValue)));
+
+		return replyJSON(res, new StatsResult(numberMatched, aggregatedStats));
+	}
+
 	private static List<Credit> creditsForMovie(Movie movie) {
 		return CREDITS.get().stream().filter(c -> c.id.equals(movie.id)).toList();
+	}
+
+	private static Map<CrewRole, Long> crewCountForMovie(List<Credit> credits) {
+		var credit = credits != null ? credits.get(0) : null;
+		return credit != null ?
+			credit.crewRole.stream().collect(Collectors.groupingBy(Server::parseRole, Collectors.counting())) : Map.of();
+	}
+
+	private static CrewRole parseRole(String inputRole) {
+		try {
+			return CrewRole.valueOf(inputRole);
+		} catch (IllegalArgumentException e) {
+			LOG.trace("Unknown role", e);
+			return CrewRole.Other;
+		}
 	}
 
 	private static Object moviesEndpoint(Request req, Response res) {
@@ -151,15 +190,37 @@ public class Server {
 		String title;
 		String voteAverage;
 
-		public String toString() {
-			return GSON.toJson(this).toString();
-		}
+		public String toString() { return GSON.toJson(this).toString(); }
 	}
 
-	public static record Credit(String id, List<String> crew, List<String> cast) {
+	public static class Credit {
+		String id;
+		List<String> crew;
+		List<String> cast;
+		transient List<String> crewRole;
+
+		private static final Pattern ROLE = Pattern.compile("\\((.*)\\)");
+
 		public Credit(Document data) {
-			this(data.getString("id"), data.getList("crew", String.class), data.getList("cast", String.class));
+			this.id = data.getString("id");
+			this.crew = data.getList("crew", String.class);
+			this.cast = data.getList("cast", String.class);
+			this.crewRole = data.getList("crew", String.class).stream().map(Credit::getRole).toList();
+		}
+
+		private static String getRole(String nameAndRole) {
+			var matcher = ROLE.matcher(nameAndRole);
+			matcher.find();
+			return matcher.group(1);
 		}
 	}
-	public static record MovieWithCredits(Movie movie, List<Credit> credits) { }
+	public record MovieWithCredits(Movie movie, List<Credit> credits) { }
+
+	public enum CrewRole {
+		Director, Writer, Screenplay, Editor, Animation, Other;
+
+		public static Map<String, CrewRole> ROLES_MAP =
+			Arrays.stream(CrewRole.class.getEnumConstants()).collect(Collectors.toMap(CrewRole::toString, Function.identity()));
+	}
+	public record StatsResult(int matchedMovies, Map<CrewRole, Long> crewCount) { }
 }
