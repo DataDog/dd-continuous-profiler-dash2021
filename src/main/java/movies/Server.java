@@ -108,9 +108,9 @@ public class Server {
 			credit.crewRole.stream().collect(Collectors.groupingBy(Server::parseRole, Collectors.counting())) : Map.of();
 	}
 
-	private static CrewRole parseRole(String role) {
+	private static CrewRole parseRole(String inputRole) {
 		try {
-			return CrewRole.valueOf(role);
+			return CrewRole.valueOf(inputRole);
 		} catch (IllegalArgumentException e) {
 			LOG.trace("Unknown role", e);
 			return CrewRole.Other;
