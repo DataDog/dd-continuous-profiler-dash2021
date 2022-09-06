@@ -100,16 +100,18 @@ public class Server {
 	private static Object oldMoviesEndpoint(Request req, Response res) {
 		var year = req.queryParamOrDefault("year", "2010");
 		var limit = Integer.valueOf(req.queryParamOrDefault("n", "10"));
-		var oldMovies = MOVIES.get().stream().filter(m -> isOlderThan(year, m)).collect(Collectors.toList());
-		LOG.debug("Found the following oldMovies: " + oldMovies);
-		oldMovies = oldMovies.stream().limit(limit).collect(Collectors.toList());
-		LOG.debug("With limit " + limit + ", the result was: " + oldMovies);
-		return replyJSON(res, oldMovies);
+
+		var oldMovies = MOVIES.get().stream().filter(m -> isOlderThan(year, m)).toList();
+		LOG.atDebug().log(() -> "Found the following oldMovies: " + oldMovies);
+		var limitedMovies = oldMovies.stream().limit(limit).toList();
+		LOG.atDebug().log(() -> "With limit " + limit + ", the result was: " + limitedMovies);
+
+		return replyJSON(res, limitedMovies);
 	}
 
 	private static boolean isOlderThan(String year, Movie movie) {
 		var result = movie.releaseDate.compareTo(year) < 0;
-		LOG.debug("Is " + movie + " older than " + year + "? " + result);
+		LOG.atDebug().log(() -> "Is " + movie + " older than " + year + "? " + result);
 		return result;
 	}
 
