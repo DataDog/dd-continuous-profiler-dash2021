@@ -117,11 +117,8 @@ public class Server {
 		}
 	}
 
-	private static Map<String, CrewRole> ROLES_MAP =
-		Arrays.stream(CrewRole.class.getEnumConstants()).collect(Collectors.toMap(CrewRole::toString, Function.identity()));
-
 	private static CrewRole fixedParseRole(String inputRole) {
-		CrewRole role = ROLES_MAP.get(inputRole);
+		CrewRole role = CrewRole.ROLES_MAP.get(inputRole);
 		return role != null ? role : CrewRole.Other;
 	}
 
@@ -232,6 +229,11 @@ public class Server {
 	}
 	public record MovieWithCredits(Movie movie, List<Credit> credits) { }
 
-	public enum CrewRole { Director, Writer, Screenplay, Editor, Animation, Other }
+	public enum CrewRole {
+		Director, Writer, Screenplay, Editor, Animation, Other;
+
+		public static Map<String, CrewRole> ROLES_MAP =
+			Arrays.stream(CrewRole.class.getEnumConstants()).collect(Collectors.toMap(CrewRole::toString, Function.identity()));
+	}
 	public record StatsResult(int matchedMovies, Map<CrewRole, Long> crewCount) { }
 }
