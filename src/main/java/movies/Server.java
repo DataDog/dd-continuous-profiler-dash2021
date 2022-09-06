@@ -19,7 +19,6 @@ import java.util.zip.GZIPInputStream;
 
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
-import com.google.gson.annotations.SerializedName;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
@@ -39,7 +38,6 @@ public class Server {
 
 	private static final Supplier<List<Movie>> MOVIES = Suppliers.memoize(Server::loadMovies);
 	private static final Supplier<List<Credit>> CREDITS = Server::loadCredits;
-	// Placeholder for future improvement
 
 	public static void main(String[] args) {
 		port(8081);
@@ -52,15 +50,11 @@ public class Server {
 		MOVIES.get();
 		CREDITS.get();
 
-		exception(Exception.class, (exception, request, response) -> {
-			System.err.println(exception.getMessage());
-			exception.printStackTrace();
-		});
+		exception(Exception.class, (exception, request, response) -> exception.printStackTrace());
 	}
 
 	private static Object randomMovieEndpoint(Request req, Response res) {
-		var randomMovie = MOVIES.get().get(new Random().nextInt(MOVIES.get().size()));
-		return replyJSON(res, randomMovie);
+		return replyJSON(res, MOVIES.get().get(new Random().nextInt(MOVIES.get().size())));
 	}
 
 	private static Object creditsEndpoint(Request req, Response res) {
@@ -77,9 +71,7 @@ public class Server {
 	}
 
 	private static List<Credit> creditsForMovie(Movie movie) {
-		// Problem: We are loading the credits every time this method gets called.
-		// Problem: We are searching the entire credits list for every single movie.
-		return CREDITS.get().stream().filter(c -> c.id.equals(movie.id)).collect(Collectors.toList());
+		return CREDITS.get().stream().filter(c -> c.id.equals(movie.id)).toList();
 	}
 
 	private static Object moviesEndpoint(Request req, Response res) {
@@ -87,7 +79,6 @@ public class Server {
 		movies = sortByDescReleaseDate(movies);
 		var query = req.queryParamOrDefault("q", req.queryParams("query"));
 		if (query != null) {
-			// Problem: We are not compiling the pattern and there's a more efficient way of ignoring cases.
 			movies = movies.filter(m -> Pattern.matches(".*" + query.toUpperCase() + ".*", m.title.toUpperCase()));
 		}
 		return replyJSON(res, movies);
@@ -95,7 +86,6 @@ public class Server {
 
 	private static Stream<Movie> sortByDescReleaseDate(Stream<Movie> movies) {
 		return movies.sorted(Comparator.comparing((Movie m) -> {
-			// Problem: We are parsing a datetime for each item to be sorted.
 			try {
 				return LocalDate.parse(m.releaseDate);
 			} catch (Exception e) {
@@ -120,10 +110,7 @@ public class Server {
 		return result;
 	}
 
-	private static Object replyJSON(Response res, Stream<?> data) {
-		return replyJSON(res, data.collect(Collectors.toList()));
-	}
-
+	private static Object replyJSON(Response res, Stream<?> data) { return replyJSON(res, data.toList()); }
 	private static Object replyJSON(Response res, Object data) {
 		res.type("application/json");
 		return GSON.toJson(data);
@@ -137,7 +124,7 @@ public class Server {
 		) {
 			return GSON.fromJson(reader, new TypeToken<List<Movie>>() {}.getType());
 		} catch (IOException e) {
-			throw new RuntimeException("Failed to load movie data");
+			throw new RuntimeException("Failed to load movie data", e);
 		}
 	}
 
@@ -146,9 +133,7 @@ public class Server {
 			var mongoClient = MongoClients.create()
 		) {
 			var creditsCollection = mongoClient.getDatabase("moviesDB").getCollection("credits");
-			return StreamSupport
-				.stream(creditsCollection.find().batchSize(5_000).map(Credit::new).spliterator(), false)
-				.collect(Collectors.toList());
+			return StreamSupport.stream(creditsCollection.find().batchSize(5_000).map(Credit::new).spliterator(), false).toList();
 		}
 	}
 
