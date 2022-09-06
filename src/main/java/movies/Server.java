@@ -56,7 +56,8 @@ public class Server {
 
 		exception(Exception.class, (exception, request, response) -> exception.printStackTrace());
 
-		LOG.info("Running version " + System.getProperty("dd.version").toLowerCase() + " with pid " + ProcessHandle.current().pid());
+		var version = System.getProperty("dd.version");
+		LOG.info("Running version " + (version != null ? version.toLowerCase() : "(not set)") + " with pid " + ProcessHandle.current().pid());
 	}
 
 	private static Object randomMovieEndpoint(Request req, Response res) {
