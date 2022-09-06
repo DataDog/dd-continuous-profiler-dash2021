@@ -22,19 +22,8 @@ processResources {
 
 application {
     mainClass.set('movies.Server')
-    applicationDefaultJvmArgs = [
-        '-Xmx3g',
-        '-Xms3g',
-        '-javaagent:dd-java-agent.jar',
-        '-Ddd.profiling.enabled=true',
-        '-XX:FlightRecorderOptions=stackdepth=256',
-        '-Ddd.logs.injection=true',
-        '-Ddd.trace.sample.rate=1',
-        '-Ddd.service=ivoanjo-testing-movies-api-java',
-        '-Ddd.env=staging',
-        "-Ddd.version=${LocalDateTime.now().withNano(0)}", // Tag each run with a different version
-        '-Ddd.profiling.jfr-template-override-file=dd-profiler-overrides.jfp',
-    ]}
+    applicationDefaultJvmArgs = ['-Xmx3g', '-Xms3g']
+}
 
 java {
     toolchain {

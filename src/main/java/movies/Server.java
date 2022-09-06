@@ -40,8 +40,7 @@ public class Server {
 	private static final Logger LOG = LoggerFactory.getLogger(Server.class);
 
 	private static final Supplier<List<Movie>> MOVIES = Suppliers.memoize(Server::loadMovies);
-	private static final Supplier<List<Credit>> CREDITS = Suppliers.memoize(Server::loadCredits);
-    private static final Supplier<Map<String, List<Credit>>> CREDITS_BY_MOVIE_ID = Suppliers.memoize(() -> CREDITS.get().stream().collect(Collectors.groupingBy(c -> c.id)));
+	private static final Supplier<List<Credit>> CREDITS = Server::loadCredits;
 
 	public static void main(String[] args) {
 		port(8081);
@@ -99,7 +98,7 @@ public class Server {
 	}
 
 	private static List<Credit> creditsForMovie(Movie movie) {
-    return CREDITS_BY_MOVIE_ID.get().get(movie.id);
+		return CREDITS.get().stream().filter(c -> c.id.equals(movie.id)).toList();
 	}
 
 	private static Map<CrewRole, Long> crewCountForMovie(List<Credit> credits) {
@@ -115,11 +114,6 @@ public class Server {
 			LOG.trace("Unknown role", e);
 			return CrewRole.Other;
 		}
-	}
-
-	private static CrewRole fixedParseRole(String inputRole) {
-		CrewRole role = CrewRole.ROLES_MAP.get(inputRole);
-		return role != null ? role : CrewRole.Other;
 	}
 
 	private static Object moviesEndpoint(Request req, Response res) {
