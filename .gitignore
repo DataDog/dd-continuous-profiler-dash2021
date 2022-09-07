@@ -3,3 +3,9 @@
 
 # Ignore Gradle build output directory
 build
+
+# Ignore Intellij IDEA settings
+.idea/
+
+# Ignore dd-trace-java binary
+dd-java-agent.jar
