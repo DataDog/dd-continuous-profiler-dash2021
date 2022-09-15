@@ -11,6 +11,9 @@
             <encoder>
                 <pattern>[%level] %logger{0} - %msg%n</pattern>
             </encoder>
+            <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+                <level>INFO</level>
+            </filter>
         </appender>
 
 
@@ -18,7 +21,7 @@
             <appender-ref ref="STDOUT" />
         </root>
 
-        <logger name="movies" level="DEBUG" additivity="false">
+        <logger name="movies" level="DEBUG">
             <appender-ref ref="FILE" />
         </logger>
 
