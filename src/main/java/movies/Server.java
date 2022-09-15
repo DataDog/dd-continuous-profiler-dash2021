@@ -40,6 +40,7 @@ public class Server {
 
 	private static final Supplier<List<Movie>> MOVIES = Suppliers.memoize(Server::loadMovies);
 	private static final Supplier<List<Credit>> CREDITS = Server::loadCredits;
+	// CREDITS_BY_MOVIE_ID goes in here!
 
 	public static void main(String[] args) {
 		port(8081);
